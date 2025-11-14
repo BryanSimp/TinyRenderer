@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="TinyRenderer/TinyRenderer.vcxproj" Id="121aa86c-3738-46e4-9581-d833f9613b8c" />
+</Solution>
