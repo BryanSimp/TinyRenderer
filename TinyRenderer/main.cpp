@@ -4,8 +4,8 @@
 #include "model.h"
 #include "tgaimage.h"
 
-constexpr int width = 800;
-constexpr int height = 800;
+constexpr int width = 128;
+constexpr int height = 128;
 
 constexpr TGAColor white = { 255, 255, 255, 255 }; // attention, BGRA order
 constexpr TGAColor green = { 0, 255,   0, 255 };
