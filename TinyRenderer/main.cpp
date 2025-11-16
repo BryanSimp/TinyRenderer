@@ -4,8 +4,8 @@
 #include "model.h"
 #include "tgaimage.h"
 
-constexpr int width = 128;
-constexpr int height = 128;
+constexpr int width = 800;
+constexpr int height = 800;
 
 constexpr TGAColor white = { 255, 255, 255, 255 }; // attention, BGRA order
 constexpr TGAColor green = { 0, 255,   0, 255 };
@@ -38,6 +38,12 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
     }
 }
 
+// Code from the Homework: wireframe rendering section
+std::tuple<int, int> project(vec3 v) { // First of all, (x,y) is an orthogonal projection of the vector (x,y,z).
+    return { (v.x + 1.) * width / 2,   // Second, since the input models are scaled to have fit in the [-1,1]^3 world coordinates,
+             (v.y + 1.) * height / 2 }; // we want to shift the vector (x,y) and then scale it to span the entire screen.
+}
+
 double signed_triangle_area(int ax, int ay, int bx, int by, int cx, int cy) {
     return .5 * ((by - ay) * (bx + ax) + (cy - by) * (cx + bx) + (ay - cy) * (ax + cx));
 }
@@ -48,6 +54,7 @@ void triangle(int ax, int ay, int bx, int by, int cx, int cy, TGAImage& framebuf
     int bbmaxx = std::max(std::max(ax, bx), cx);
     int bbmaxy = std::max(std::max(ay, by), cy);
     double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
+    if (total_area < 1) return; // backface culling + discarding triangles that cover less than a pixel
 
 #pragma omp parallel for
     for (int x = bbminx; x <= bbmaxx; x++) {
@@ -62,20 +69,26 @@ void triangle(int ax, int ay, int bx, int by, int cx, int cy, TGAImage& framebuf
 }
 
 int main(int argc, char** argv) {
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " obj/model.obj" << std::endl;
+        return 1;
+    }
+
+    Model model(argv[1]);
     TGAImage framebuffer(width, height, TGAImage::RGB);
-    triangle(7, 45, 35, 100, 45, 60, framebuffer, red);
-    triangle(120, 35, 90, 5, 45, 110, framebuffer, white);
-    triangle(115, 83, 80, 90, 85, 120, framebuffer, green);
+
+    for (int i = 0; i < model.nfaces(); i++) { // iterate through all triangles
+        auto [ax, ay] = project(model.vert(i, 0));
+        auto [bx, by] = project(model.vert(i, 1));
+        auto [cx, cy] = project(model.vert(i, 2));
+        TGAColor rnd;
+        for (int c = 0; c < 3; c++) rnd[c] = std::rand() % 255;
+        triangle(ax, ay, bx, by, cx, cy, framebuffer, rnd);
+    }
+
     framebuffer.write_tga_file("framebuffer.tga");
     return 0;
 }
-
-/* Code from the Homework: wireframe rendering section
-std::tuple<int, int> project(vec3 v) { // First of all, (x,y) is an orthogonal projection of the vector (x,y,z).
-    return { (v.x + 1.) * width / 2,   // Second, since the input models are scaled to have fit in the [-1,1]^3 world coordinates,
-             (v.y + 1.) * height / 2 }; // we want to shift the vector (x,y) and then scale it to span the entire screen.
-}
-*/
 
 /* Code for the Triangle rasterization section scanline approach
 void triangle(int ax, int ay, int bx, int by, int cx, int cy, TGAImage& framebuffer, TGAColor color) {
