@@ -37,18 +37,28 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
         }
     }
 }
-/* Code from the Homework: wireframe rendering section
-std::tuple<int, int> project(vec3 v) { // First of all, (x,y) is an orthogonal projection of the vector (x,y,z).
-    return { (v.x + 1.) * width / 2,   // Second, since the input models are scaled to have fit in the [-1,1]^3 world coordinates,
-             (v.y + 1.) * height / 2 }; // we want to shift the vector (x,y) and then scale it to span the entire screen.
-}
-*/
 
-// Code for the Triangle rasterization section
+double signed_triangle_area(int ax, int ay, int bx, int by, int cx, int cy) {
+    return .5 * ((by - ay) * (bx + ax) + (cy - by) * (cx + bx) + (ay - cy) * (ax + cx));
+}
+
 void triangle(int ax, int ay, int bx, int by, int cx, int cy, TGAImage& framebuffer, TGAColor color) {
-    line(ax, ay, bx, by, framebuffer, color);
-    line(bx, by, cx, cy, framebuffer, color);
-    line(cx, cy, ax, ay, framebuffer, color);
+    int bbminx = std::min(std::min(ax, bx), cx); // bounding box for the triangle
+    int bbminy = std::min(std::min(ay, by), cy); // defined by its top left and bottom right corners
+    int bbmaxx = std::max(std::max(ax, bx), cx);
+    int bbmaxy = std::max(std::max(ay, by), cy);
+    double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
+
+#pragma omp parallel for
+    for (int x = bbminx; x <= bbmaxx; x++) {
+        for (int y = bbminy; y <= bbmaxy; y++) {
+            double alpha = signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
+            double beta = signed_triangle_area(x, y, cx, cy, ax, ay) / total_area;
+            double gamma = signed_triangle_area(x, y, ax, ay, bx, by) / total_area;
+            if (alpha < 0 || beta < 0 || gamma < 0) continue; // negative barycentric coordinate => the pixel is outside the triangle
+            framebuffer.set(x, y, color);
+        }
+    }
 }
 
 int main(int argc, char** argv) {
@@ -59,3 +69,39 @@ int main(int argc, char** argv) {
     framebuffer.write_tga_file("framebuffer.tga");
     return 0;
 }
+
+/* Code from the Homework: wireframe rendering section
+std::tuple<int, int> project(vec3 v) { // First of all, (x,y) is an orthogonal projection of the vector (x,y,z).
+    return { (v.x + 1.) * width / 2,   // Second, since the input models are scaled to have fit in the [-1,1]^3 world coordinates,
+             (v.y + 1.) * height / 2 }; // we want to shift the vector (x,y) and then scale it to span the entire screen.
+}
+*/
+
+/* Code for the Triangle rasterization section scanline approach
+void triangle(int ax, int ay, int bx, int by, int cx, int cy, TGAImage& framebuffer, TGAColor color) {
+    // sort the vertices, a,b,c in ascending y order (bubblesort yay!)
+    if (ay > by) { std::swap(ax, bx); std::swap(ay, by); }
+    if (ay > cy) { std::swap(ax, cx); std::swap(ay, cy); }
+    if (by > cy) { std::swap(bx, cx); std::swap(by, cy); }
+    int total_height = cy - ay;
+
+    if (ay != by) { // if the bottom half is not degenerate
+        int segment_height = by - ay;
+        for (int y = ay; y <= by; y++) { //sweep the horizontal line from ay to by
+            int x1 = ax + ((cx - ax) * (y - ay)) / total_height;
+            int x2 = ax + ((bx - ax) * (y - ay)) / segment_height;
+            for (int x = std::min(x1, x2); x < std::max(x1, x2); x++) // draw a horizontal line
+                framebuffer.set(x, y, color);
+        }
+    }
+    if (by != cy) { // if the upper half is not degenerate
+        int segment_height = cy - by;
+        for (int y = by; y <= cy; y++) { // sweep the horizontal line from by to cy
+            int x1 = ax + ((cx - ax) * (y - ay)) / total_height;
+            int x2 = bx + ((cx - bx) * (y - by)) / segment_height;
+            for (int x = std::min(x1, x2); x < std::max(x1, x2); x++)  // draw a horizontal line
+                framebuffer.set(x, y, color);
+        }
+    }
+}
+*/
