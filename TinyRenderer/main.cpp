@@ -63,7 +63,15 @@ void triangle(int ax, int ay, int bx, int by, int cx, int cy, TGAImage& framebuf
             double beta = signed_triangle_area(x, y, cx, cy, ax, ay) / total_area;
             double gamma = signed_triangle_area(x, y, ax, ay, bx, by) / total_area;
             if (alpha < 0 || beta < 0 || gamma < 0) continue; // negative barycentric coordinate => the pixel is outside the triangle
-            framebuffer.set(x, y, color);
+
+            TGAColor barycolor = {
+                static_cast<unsigned char>(std::round(alpha * 255)),
+                static_cast<unsigned char>(std::round(beta * 255)),
+                static_cast<unsigned char>(std::round(gamma * 255)),
+                255
+            };
+
+            framebuffer.set(x, y, barycolor);
         }
     }
 }
@@ -77,14 +85,15 @@ int main(int argc, char** argv) {
     Model model(argv[1]);
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
-    for (int i = 0; i < model.nfaces(); i++) { // iterate through all triangles
+    /*for (int i = 0; i < model.nfaces(); i++) { // iterate through all triangles
         auto [ax, ay] = project(model.vert(i, 0));
         auto [bx, by] = project(model.vert(i, 1));
         auto [cx, cy] = project(model.vert(i, 2));
         TGAColor rnd;
         for (int c = 0; c < 3; c++) rnd[c] = std::rand() % 255;
         triangle(ax, ay, bx, by, cx, cy, framebuffer, rnd);
-    }
+    }*/
+    triangle(200, 200, 600, 250, 400, 600, framebuffer, red);
 
     framebuffer.write_tga_file("framebuffer.tga");
     return 0;
